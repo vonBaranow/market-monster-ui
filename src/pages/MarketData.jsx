@@ -1,21 +1,17 @@
-
+import MarketDataDownloader from '../components/MarketDataDownloader';
+import 'bootstrap/dist/css/bootstrap.min.css';
 
 const MarketData = () => {
   return (
-    <div style={styles.container}>
-      <h2>Market Data</h2>
-      <p>This is a sample page for Market Data. You can add your market data content here.</p>
+    <div className="container-fluid">
+      <div className="row">
+        <div className="col-12">
+          <h2 className="my-4">Market Data</h2>
+          <MarketDataDownloader />
+        </div>
+      </div>
     </div>
   );
-};
-
-const styles = {
-  container: {
-    padding: '2rem',
-    backgroundColor: 'white',
-    borderRadius: '8px',
-    boxShadow: '0 2px 4px rgba(0, 0, 0, 0.1)',
-  },
 };
 
 export default MarketData;
