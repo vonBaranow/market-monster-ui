@@ -1,10 +1,9 @@
-
+import StrategiesComponent from '../components/StrategiesComponent';
 
 const Strategies = () => {
   return (
     <div style={styles.container}>
-      <h2>Strategies</h2>
-      <p>This is a sample page for Strategies. You can add your trading strategies content here.</p>
+      <StrategiesComponent />
     </div>
   );
 };
