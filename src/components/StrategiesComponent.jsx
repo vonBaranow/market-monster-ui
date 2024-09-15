@@ -45,14 +45,34 @@ const StrategiesComponent = () => {
     setResults(null);
     try {
       const calculatedResults = await calculateStrategy(selectedStrategy.id, formData);
-      if (!calculatedResults || !Array.isArray(calculatedResults.closePrices)) {
-        console.error('Invalid data structure:', calculatedResults);
-        throw new Error('Invalid data structure received from the server');
+      console.log('API Response:', calculatedResults);
+
+      // Check for required fields
+      const requiredFields = ['timestamps', 'closePrices', 'buySignals', 'sellSignals', 'cumulativePNL', 'shortSMA', 'longSMA', 'totalTrades', 'winningTrades', 'losingTrades', 'winRate', 'averageWin', 'averageLoss', 'profitFactor', 'maxDrawdown', 'profitLoss'];
+      const missingFields = requiredFields.filter(field => !Object.prototype.hasOwnProperty.call(calculatedResults, field));
+
+      if (missingFields.length > 0) {
+        throw new Error(`Missing required fields in API response: ${missingFields.join(', ')}`);
       }
+
+      // Validate data types
+      if (!Array.isArray(calculatedResults.timestamps) || calculatedResults.timestamps.length === 0) {
+        throw new Error('Invalid or empty timestamps array');
+      }
+      if (!Array.isArray(calculatedResults.closePrices) || calculatedResults.closePrices.length === 0) {
+        throw new Error('Invalid or empty closePrices array');
+      }
+      if (calculatedResults.timestamps.length !== calculatedResults.closePrices.length) {
+        throw new Error('Mismatch between timestamps and closePrices array lengths');
+      }
+
       setResults({
         ...calculatedResults,
         strategyName: selectedStrategy.name,
-        timeframe: formData.interval
+        timeframe: formData.interval,
+        symbol: formData.symbol,
+        startDate: formData.startDate,
+        endDate: formData.endDate
       });
     } catch (error) {
       console.error('Error calculating strategy:', error);

@@ -2,16 +2,29 @@ import PropTypes from 'prop-types';
 
 const TradeSummary = ({ results }) => {
   if (!results || typeof results !== 'object') {
+    console.error('Invalid trade summary data:', results);
     return <div>Error: Invalid trade summary data</div>;
   }
 
   const formatNumber = (num, decimalPlaces = 2) => {
-    return Number.isFinite(num) ? num.toFixed(decimalPlaces) : 'N/A';
+    if (!Number.isFinite(num)) {
+      console.warn(`Invalid number for formatting: ${num}`);
+      return 'N/A';
+    }
+    return num.toFixed(decimalPlaces);
   };
 
   const formatPercentage = (num) => {
-    return Number.isFinite(num) ? `${(num * 100).toFixed(2)}%` : 'N/A';
+    if (!Number.isFinite(num)) {
+      console.warn(`Invalid number for percentage formatting: ${num}`);
+      return 'N/A';
+    }
+    // Handle both decimal (e.g., 0.5) and whole number (e.g., 50) inputs
+    const percentage = num > 1 ? num : num * 100;
+    return `${percentage.toFixed(2)}%`;
   };
+
+  console.log('Trade summary data:', results);
 
   return (
     <div className="trade-summary">

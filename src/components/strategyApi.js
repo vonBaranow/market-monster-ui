@@ -48,7 +48,12 @@ export const calculateStrategy = async (id, params) => {
   console.log('Calling URL:', url);
 
   try {
-    const response = await fetch(url);
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 30000); // 30 second timeout
+
+    const response = await fetch(url, { signal: controller.signal });
+    clearTimeout(timeoutId);
+
     if (!response.ok) {
       console.error('Full response object:', response);
       let errorMessage = `Failed to calculate strategy results. Status: ${response.status}`;
@@ -66,9 +71,21 @@ export const calculateStrategy = async (id, params) => {
     }
     const data = await response.json();
     console.log('API Response:', data);
+
+    // Validate required fields
+    const requiredFields = ['timestamps', 'closePrices', 'buySignals', 'sellSignals', 'cumulativePNL', 'shortSMA', 'longSMA', 'totalTrades', 'winningTrades', 'losingTrades', 'winRate', 'averageWin', 'averageLoss', 'profitFactor', 'maxDrawdown', 'profitLoss'];
+    const missingFields = requiredFields.filter(field => !Object.prototype.hasOwnProperty.call(data, field));
+
+    if (missingFields.length > 0) {
+      throw new Error(`Missing required fields in API response: ${missingFields.join(', ')}`);
+    }
+
     return data;
   } catch (error) {
     console.error('Error calculating strategy:', error);
+    if (error.name === 'AbortError') {
+      throw new Error('Request timed out. Please try again.');
+    }
     throw error;
   }
 };
