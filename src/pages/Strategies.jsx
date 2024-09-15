@@ -1,9 +1,12 @@
 import StrategiesComponent from '../components/StrategiesComponent';
+import { StrategyProvider } from '../components/StrategyContext';
 
 const Strategies = () => {
   return (
     <div style={styles.container}>
-      <StrategiesComponent />
+      <StrategyProvider>
+        <StrategiesComponent />
+      </StrategyProvider>
     </div>
   );
 };

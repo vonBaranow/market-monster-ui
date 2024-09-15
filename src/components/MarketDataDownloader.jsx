@@ -1,20 +1,12 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import axios from 'axios';
 import 'bootstrap/dist/css/bootstrap.min.css';
+import MarketDataChart from './MarketDataChart';
+import { fetchStrategies, calculateStrategy } from './strategyApi';
 
-// Base URL for the API
 const API_BASE_URL = 'http://localhost:8081';
 
-/**
- * MarketDataDownloader component for downloading market data.
- * 
- * This component provides a form for users to input parameters for market data download,
- * and handles the download process through API calls.
- * 
- * @returns {JSX.Element} The rendered MarketDataDownloader component
- */
 const MarketDataDownloader = () => {
-  // State for form data
   const [formData, setFormData] = useState({
     exchange: '',
     symbol: '',
@@ -22,52 +14,79 @@ const MarketDataDownloader = () => {
     startTime: '',
     endTime: '',
   });
-
-  // State to track if a download is in progress
   const [isDownloading, setIsDownloading] = useState(false);
+  const [marketData, setMarketData] = useState([]);
+  const [strategies, setStrategies] = useState([]);
+  const [selectedStrategy, setSelectedStrategy] = useState('');
+  const [strategyResults, setStrategyResults] = useState(null);
 
-  /**
-   * Handles changes in form input fields.
-   * 
-   * @param {Object} e - The event object
-   * @param {string} e.target.name - The name of the input field
-   * @param {string} e.target.value - The new value of the input field
-   */
+  useEffect(() => {
+    const loadStrategies = async () => {
+      try {
+        const fetchedStrategies = await fetchStrategies();
+        setStrategies(fetchedStrategies);
+      } catch (error) {
+        console.error('Error fetching strategies:', error);
+      }
+    };
+    loadStrategies();
+  }, []);
+
   const handleInputChange = (e) => {
     const { name, value } = e.target;
     setFormData({ ...formData, [name]: value });
   };
 
-  /**
-   * Handles the form submission to start the download process.
-   * 
-   * @param {Object} e - The event object
-   */
   const handleDownload = async (e) => {
     e.preventDefault();
     setIsDownloading(true);
     try {
       const response = await axios.post(`${API_BASE_URL}/api/market-data/download-all`, formData);
       console.log('Download started:', response.data);
-      // TODO: Show success message to the user
+      await fetchMarketData();
     } catch (error) {
       console.error('Error starting download:', error);
-      // TODO: Show error message to the user
+    } finally {
+      setIsDownloading(false);
     }
   };
 
-  /**
-   * Handles the request to stop the ongoing download process.
-   */
   const handleStopDownload = async () => {
     try {
       const response = await axios.post(`${API_BASE_URL}/api/market-data/stop-download`);
       console.log('Download stopped:', response.data);
       setIsDownloading(false);
-      // TODO: Show success message to the user
     } catch (error) {
       console.error('Error stopping download:', error);
-      // TODO: Show error message to the user
+    }
+  };
+
+  const fetchMarketData = async () => {
+    try {
+      const response = await axios.get(`${API_BASE_URL}/api/market-data`, { params: formData });
+      setMarketData(response.data);
+    } catch (error) {
+      console.error('Error fetching market data:', error);
+    }
+  };
+
+  const handleStrategyChange = (e) => {
+    setSelectedStrategy(e.target.value);
+  };
+
+  const handleCalculateStrategy = async () => {
+    if (!selectedStrategy) return;
+
+    try {
+      const results = await calculateStrategy(selectedStrategy, {
+        symbol: formData.symbol,
+        interval: formData.interval,
+        startDate: formData.startTime,
+        endDate: formData.endTime,
+      });
+      setStrategyResults(results);
+    } catch (error) {
+      console.error('Error calculating strategy:', error);
     }
   };
 
@@ -77,7 +96,6 @@ const MarketDataDownloader = () => {
         <h5 className="card-title mb-4">Market Data Downloader</h5>
         <form onSubmit={handleDownload}>
           <div className="row g-3">
-            {/* Exchange input field */}
             <div className="col-md-6 col-lg-4">
               <label htmlFor="exchange" className="form-label">Exchange:</label>
               <input
@@ -90,7 +108,6 @@ const MarketDataDownloader = () => {
                 required
               />
             </div>
-            {/* Symbol input field */}
             <div className="col-md-6 col-lg-4">
               <label htmlFor="symbol" className="form-label">Symbol:</label>
               <input
@@ -103,7 +120,6 @@ const MarketDataDownloader = () => {
                 required
               />
             </div>
-            {/* Interval input field */}
             <div className="col-md-6 col-lg-4">
               <label htmlFor="interval" className="form-label">Interval:</label>
               <input
@@ -116,7 +132,6 @@ const MarketDataDownloader = () => {
                 required
               />
             </div>
-            {/* Start Time input field */}
             <div className="col-md-6 col-lg-6">
               <label htmlFor="startTime" className="form-label">Start Time:</label>
               <input
@@ -129,7 +144,6 @@ const MarketDataDownloader = () => {
                 required
               />
             </div>
-            {/* End Time input field */}
             <div className="col-md-6 col-lg-6">
               <label htmlFor="endTime" className="form-label">End Time:</label>
               <input
@@ -143,7 +157,6 @@ const MarketDataDownloader = () => {
               />
             </div>
           </div>
-          {/* Form submission buttons */}
           <div className="mt-4 d-flex justify-content-end">
             <button type="submit" className="btn btn-primary me-2" disabled={isDownloading}>
               Start Download
@@ -158,6 +171,45 @@ const MarketDataDownloader = () => {
             </button>
           </div>
         </form>
+
+        <div className="mt-4">
+          <h5>Strategy Calculation</h5>
+          <div className="row g-3">
+            <div className="col-md-6">
+              <label htmlFor="strategy" className="form-label">Select Strategy:</label>
+              <select
+                className="form-select"
+                id="strategy"
+                value={selectedStrategy}
+                onChange={handleStrategyChange}
+              >
+                <option value="">Choose a strategy</option>
+                {strategies.map((strategy) => (
+                  <option key={strategy.id} value={strategy.id}>
+                    {strategy.name}
+                  </option>
+                ))}
+              </select>
+            </div>
+            <div className="col-md-6 d-flex align-items-end">
+              <button
+                type="button"
+                className="btn btn-primary"
+                onClick={handleCalculateStrategy}
+                disabled={!selectedStrategy}
+              >
+                Calculate Strategy
+              </button>
+            </div>
+          </div>
+        </div>
+
+        {marketData.length > 0 && (
+          <div className="mt-4">
+            <h5>Market Data and Strategy Results</h5>
+            <MarketDataChart marketData={marketData} strategyResults={strategyResults} />
+          </div>
+        )}
       </div>
     </div>
   );
