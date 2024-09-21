@@ -7,6 +7,8 @@ const StrategyForm = ({ onSubmit, isLoading }) => {
     interval: 'ONE_MINUTE',
     startDate: '',
     endDate: '',
+    initialBankroll: 10000, // Default value
+    tradeSizePercentage: 2, // Default value
   });
 
   const handleInputChange = (e) => {
@@ -20,6 +22,8 @@ const StrategyForm = ({ onSubmit, isLoading }) => {
       ...formData,
       startDate: new Date(formData.startDate).toISOString(),
       endDate: new Date(formData.endDate).toISOString(),
+      initialBankroll: parseFloat(formData.initialBankroll),
+      tradeSizePercentage: parseFloat(formData.tradeSizePercentage),
     });
   };
 
@@ -57,6 +61,37 @@ const StrategyForm = ({ onSubmit, isLoading }) => {
         <div className="col-md-3">
           <label htmlFor="endDate" className="form-label">End Date</label>
           <input type="datetime-local" className="form-control" id="endDate" name="endDate" value={formData.endDate} onChange={handleInputChange} required />
+        </div>
+      </div>
+      <div className="row mt-3">
+        <div className="col-md-6">
+          <label htmlFor="initialBankroll" className="form-label">Initial Bankroll ($)</label>
+          <input
+            type="number"
+            className="form-control"
+            id="initialBankroll"
+            name="initialBankroll"
+            value={formData.initialBankroll}
+            onChange={handleInputChange}
+            min="0.01"
+            step="0.01"
+            required
+          />
+        </div>
+        <div className="col-md-6">
+          <label htmlFor="tradeSizePercentage" className="form-label">Trade Size (%)</label>
+          <input
+            type="number"
+            className="form-control"
+            id="tradeSizePercentage"
+            name="tradeSizePercentage"
+            value={formData.tradeSizePercentage}
+            onChange={handleInputChange}
+            min="0.01"
+            max="100"
+            step="0.01"
+            required
+          />
         </div>
       </div>
       <button type="submit" className="btn btn-primary mt-3" disabled={isLoading}>

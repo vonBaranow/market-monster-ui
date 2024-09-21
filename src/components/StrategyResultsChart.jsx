@@ -9,6 +9,7 @@ const StrategyResultsChart = ({ results }) => {
   const [showCumulativePNL, setShowCumulativePNL] = useState(true);
   const [showShortSMA, setShowShortSMA] = useState(true);
   const [showLongSMA, setShowLongSMA] = useState(true);
+  const [showBankroll, setShowBankroll] = useState(true);
   const [traces, setTraces] = useState([]);
   const [layout, setLayout] = useState({});
   const [isDataValid, setIsDataValid] = useState(true);
@@ -17,7 +18,8 @@ const StrategyResultsChart = ({ results }) => {
     if (
       !results ||
       !Array.isArray(results.closePrices) ||
-      !Array.isArray(results.timestamps)
+      !Array.isArray(results.timestamps) ||
+      !Array.isArray(results.tradeHistory)
     ) {
       console.error('Invalid results data:', results);
       setIsDataValid(false);
@@ -42,7 +44,7 @@ const StrategyResultsChart = ({ results }) => {
         name: 'Close Price',
         line: { color: 'blue', width: 2 },
         yaxis: 'y',
-        hovertemplate: '%{x}<br>Close: %{y}<br>',
+        hovertemplate: '%{x}<br>Close: %{y:.2f}<br>',
       });
     }
 
@@ -61,6 +63,7 @@ const StrategyResultsChart = ({ results }) => {
         name: 'Short SMA',
         line: { color: 'orange', width: 1.5 },
         yaxis: 'y',
+        hovertemplate: '%{x}<br>Short SMA: %{y:.2f}<br>',
       });
     }
 
@@ -79,6 +82,7 @@ const StrategyResultsChart = ({ results }) => {
         name: 'Long SMA',
         line: { color: 'purple', width: 1.5 },
         yaxis: 'y',
+        hovertemplate: '%{x}<br>Long SMA: %{y:.2f}<br>',
       });
     }
 
@@ -94,7 +98,7 @@ const StrategyResultsChart = ({ results }) => {
         yaxis: 'y',
         hoverinfo: 'text',
         text: results.buySignals.map(
-          (signal) => `Buy at ${signal.price.toFixed(2)} on ${signal.timestamp}`
+          (signal) => `Buy at ${signal.price.toFixed(2)} on ${new Date(signal.timestamp).toLocaleString()}`
         ),
       });
     }
@@ -111,7 +115,7 @@ const StrategyResultsChart = ({ results }) => {
         yaxis: 'y',
         hoverinfo: 'text',
         text: results.sellSignals.map(
-          (signal) => `Sell at ${signal.price.toFixed(2)} on ${signal.timestamp}`
+          (signal) => `Sell at ${signal.price.toFixed(2)} on ${new Date(signal.timestamp).toLocaleString()}`
         ),
       });
     }
@@ -126,6 +130,26 @@ const StrategyResultsChart = ({ results }) => {
         name: 'Cumulative PNL',
         line: { color: 'green', width: 2, dash: 'dot' },
         yaxis: 'y2',
+        hovertemplate: '%{x}<br>Cumulative PNL: $%{y:.2f}<br>',
+      });
+    }
+
+    // Plot Bankroll
+    if (showBankroll) {
+      const bankrollData = results.tradeHistory.map(trade => ({
+        x: parseISODate(trade.date),
+        y: trade.currentBankroll
+      }));
+
+      newTraces.push({
+        x: bankrollData.map(point => point.x),
+        y: bankrollData.map(point => point.y),
+        type: 'scatter',
+        mode: 'lines',
+        name: 'Bankroll',
+        line: { color: 'purple', width: 2 },
+        yaxis: 'y3',
+        hovertemplate: '%{x}<br>Bankroll: $%{y:.2f}<br>',
       });
     }
 
@@ -148,8 +172,18 @@ const StrategyResultsChart = ({ results }) => {
         zeroline: false,
         automargin: true,
       },
+      yaxis3: {
+        title: 'Bankroll',
+        overlaying: 'y',
+        side: 'right',
+        showgrid: false,
+        zeroline: false,
+        automargin: true,
+        anchor: 'free',
+        position: 1
+      },
       legend: { orientation: 'h', y: -0.3 },
-      margin: { t: 80, b: 100 },
+      margin: { t: 80, b: 100, r: 100 },
       hovermode: 'x unified',
     });
   }, [
@@ -160,6 +194,7 @@ const StrategyResultsChart = ({ results }) => {
     showCumulativePNL,
     showShortSMA,
     showLongSMA,
+    showBankroll,
   ]);
 
   if (!isDataValid) {
@@ -209,13 +244,21 @@ const StrategyResultsChart = ({ results }) => {
           />
           Sell Signals
         </label>
-        <label>
+        <label style={{ marginRight: '10px' }}>
           <input
             type="checkbox"
             checked={showCumulativePNL}
             onChange={() => setShowCumulativePNL(!showCumulativePNL)}
           />
           Cumulative PNL
+        </label>
+        <label>
+          <input
+            type="checkbox"
+            checked={showBankroll}
+            onChange={() => setShowBankroll(!showBankroll)}
+          />
+          Bankroll
         </label>
       </div>
       <Plot
@@ -224,19 +267,6 @@ const StrategyResultsChart = ({ results }) => {
         style={{ width: '100%', height: '600px' }}
         config={{ responsive: true }}
       />
-      <div style={{ marginTop: '20px' }}>
-        <h3>Trade Statistics</h3>
-        <ul>
-          <li>Total Trades: {results.totalTrades}</li>
-          <li>Winning Trades: {results.winningTrades}</li>
-          <li>Losing Trades: {results.losingTrades}</li>
-          <li>Win Rate: {(results.winRate * 100).toFixed(2)}%</li>
-          <li>Average Win: ${results.averageWin.toFixed(2)}</li>
-          <li>Average Loss: ${results.averageLoss.toFixed(2)}</li>
-          <li>Profit Factor: {results.profitFactor.toFixed(2)}</li>
-          <li>Max Drawdown: ${results.maxDrawdown.toFixed(2)}</li>
-        </ul>
-      </div>
     </div>
   );
 };
@@ -260,17 +290,15 @@ StrategyResultsChart.propTypes = {
     cumulativePNL: PropTypes.arrayOf(PropTypes.number),
     shortSMA: PropTypes.arrayOf(PropTypes.number),
     longSMA: PropTypes.arrayOf(PropTypes.number),
+    tradeHistory: PropTypes.arrayOf(
+      PropTypes.shape({
+        date: PropTypes.string.isRequired,
+        currentBankroll: PropTypes.number.isRequired,
+      })
+    ),
     strategyName: PropTypes.string,
     symbol: PropTypes.string.isRequired,
     timeframe: PropTypes.string.isRequired,
-    totalTrades: PropTypes.number.isRequired,
-    winningTrades: PropTypes.number.isRequired,
-    losingTrades: PropTypes.number.isRequired,
-    winRate: PropTypes.number.isRequired,
-    averageWin: PropTypes.number.isRequired,
-    averageLoss: PropTypes.number.isRequired,
-    profitFactor: PropTypes.number.isRequired,
-    maxDrawdown: PropTypes.number.isRequired,
   }).isRequired,
 };
 

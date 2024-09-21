@@ -36,12 +36,14 @@ export const deleteStrategy = async (id) => {
 };
 
 export const calculateStrategy = async (id, params) => {
-  const { symbol, interval, startDate, endDate } = params;
+  const { symbol, interval, startDate, endDate, initialBankroll, tradeSizePercentage } = params;
   const queryParams = new URLSearchParams({
     symbol,
     timeframe: interval,
     startDate: new Date(startDate).toISOString(),
-    endDate: new Date(endDate).toISOString()
+    endDate: new Date(endDate).toISOString(),
+    initialBankroll: initialBankroll.toString(),
+    tradeSizePercentage: tradeSizePercentage.toString()
   }).toString();
   
   const url = `${API_BASE_URL}/api/strategies/${id}/calculate?${queryParams}`;
@@ -73,7 +75,13 @@ export const calculateStrategy = async (id, params) => {
     console.log('API Response:', data);
 
     // Validate required fields
-    const requiredFields = ['timestamps', 'closePrices', 'buySignals', 'sellSignals', 'cumulativePNL', 'shortSMA', 'longSMA', 'totalTrades', 'winningTrades', 'losingTrades', 'winRate', 'averageWin', 'averageLoss', 'profitFactor', 'maxDrawdown', 'profitLoss'];
+    const requiredFields = [
+      'timestamps', 'closePrices', 'buySignals', 'sellSignals', 'cumulativePNL', 
+      'shortSMA', 'longSMA', 'totalTrades', 'winningTrades', 'losingTrades', 
+      'winRate', 'averageWin', 'averageLoss', 'profitFactor', 'maxDrawdown', 
+      'profitLoss', 'initialBankroll', 'finalBankroll', 'bankrollGrowth', 
+      'maxDrawdownPercentage', 'tradeHistory'
+    ];
     const missingFields = requiredFields.filter(field => !Object.prototype.hasOwnProperty.call(data, field));
 
     if (missingFields.length > 0) {

@@ -48,14 +48,20 @@ const StrategiesComponent = () => {
       console.log('API Response:', calculatedResults);
 
       // Check for required fields
-      const requiredFields = ['timestamps', 'closePrices', 'buySignals', 'sellSignals', 'cumulativePNL', 'shortSMA', 'longSMA', 'totalTrades', 'winningTrades', 'losingTrades', 'winRate', 'averageWin', 'averageLoss', 'profitFactor', 'maxDrawdown', 'profitLoss'];
+      const requiredFields = [
+        'timestamps', 'closePrices', 'buySignals', 'sellSignals', 'cumulativePNL', 
+        'shortSMA', 'longSMA', 'totalTrades', 'winningTrades', 'losingTrades', 
+        'winRate', 'averageWin', 'averageLoss', 'profitFactor', 'maxDrawdown', 
+        'profitLoss', 'initialBankroll', 'finalBankroll', 'bankrollGrowth', 
+        'maxDrawdownPercentage', 'tradeHistory'
+      ];
       const missingFields = requiredFields.filter(field => !Object.prototype.hasOwnProperty.call(calculatedResults, field));
 
       if (missingFields.length > 0) {
         throw new Error(`Missing required fields in API response: ${missingFields.join(', ')}`);
       }
 
-      // Validate data types
+      // Validate data types and lengths
       if (!Array.isArray(calculatedResults.timestamps) || calculatedResults.timestamps.length === 0) {
         throw new Error('Invalid or empty timestamps array');
       }
@@ -65,6 +71,12 @@ const StrategiesComponent = () => {
       if (calculatedResults.timestamps.length !== calculatedResults.closePrices.length) {
         throw new Error('Mismatch between timestamps and closePrices array lengths');
       }
+      if (!Array.isArray(calculatedResults.buySignals) || !Array.isArray(calculatedResults.sellSignals)) {
+        throw new Error('Invalid buySignals or sellSignals array');
+      }
+      if (!Array.isArray(calculatedResults.tradeHistory) || calculatedResults.tradeHistory.length === 0) {
+        throw new Error('Invalid or empty tradeHistory array');
+      }
 
       setResults({
         ...calculatedResults,
@@ -72,7 +84,9 @@ const StrategiesComponent = () => {
         timeframe: formData.interval,
         symbol: formData.symbol,
         startDate: formData.startDate,
-        endDate: formData.endDate
+        endDate: formData.endDate,
+        initialBankroll: formData.initialBankroll,
+        tradeSizePercentage: formData.tradeSizePercentage
       });
     } catch (error) {
       console.error('Error calculating strategy:', error);
@@ -129,6 +143,18 @@ const StrategiesComponent = () => {
               <h3>Strategy Results for {results.symbol}</h3>
               <StrategyResultsChart results={results} />
               <TradeSummary results={results} />
+              <div className="mt-3">
+                <h4>Additional Strategy Metrics</h4>
+                <ul>
+                  <li>Total Trades: {results.totalTrades}</li>
+                  <li>Winning Trades: {results.winningTrades}</li>
+                  <li>Losing Trades: {results.losingTrades}</li>
+                  <li>Win Rate: {(results.winRate * 100).toFixed(2)}%</li>
+                  <li>Profit Factor: {results.profitFactor.toFixed(2)}</li>
+                  <li>Max Drawdown: ${results.maxDrawdown.toFixed(2)} ({(results.maxDrawdownPercentage * 100).toFixed(2)}%)</li>
+                  <li>Total Profit/Loss: ${results.profitLoss.toFixed(2)}</li>
+                </ul>
+              </div>
             </div>
           )}
         </>
