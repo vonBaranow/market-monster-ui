@@ -24,127 +24,68 @@ const StrategyResultsChart = ({ results }) => {
       return;
     }
 
-    // Check for duplicate timestamps
-    const checkTimestamps = (timestamps) => {
-      const seen = new Set();
-      for (let i = 0; i < timestamps.length; i++) {
-        if (seen.has(timestamps[i])) {
-          console.error('Duplicate timestamp found at index:', i);
-          return false;
-        }
-        seen.add(timestamps[i]);
-      }
-      return true;
-    };
-
-    if (!checkTimestamps(results.timestamps)) {
-      console.error('Timestamps contain duplicates or are unsorted.');
-      setIsDataValid(false);
-      return;
-    }
-
     setIsDataValid(true);
     console.log('Chart data:', results);
 
-    const MAX_POINTS = 1000;
-
-    const downsampleData = (data) => {
-      const length = data.length;
-      if (length <= MAX_POINTS)
-        return { data, indices: data.map((_, idx) => idx) };
-      const factor = length / MAX_POINTS;
-      const downsampledData = [];
-      const indices = [];
-      for (let i = 0; i < MAX_POINTS; i++) {
-        const idx = Math.floor(i * factor);
-        downsampledData.push(data[idx]);
-        indices.push(idx);
-      }
-      return { data: downsampledData, indices };
-    };
-
-    const isValidNumber = (value) =>
-      typeof value === 'number' && isFinite(value) && !isNaN(value);
-    const cleanData = (data) =>
-      data.map((value) => (isValidNumber(value) ? value : null));
-
-    const { data: downsampledTimestamps, indices } = downsampleData(results.timestamps);
-
-    // Clean and downsample data arrays
-    const downsampledClosePrices = cleanData(indices.map((idx) => results.closePrices[idx]));
-    const downsampledShortSMA = cleanData(indices.map((idx) => results.shortSMA[idx]));
-    const downsampledLongSMA = cleanData(indices.map((idx) => results.longSMA[idx]));
-    const downsampledCumulativePNL = cleanData(indices.map((idx) => results.cumulativePNL[idx]));
-
-    // Verify data lengths
-    const dataLengths = {
-      timestamps: downsampledTimestamps.length,
-      closePrices: downsampledClosePrices.length,
-      shortSMA: downsampledShortSMA.length,
-      longSMA: downsampledLongSMA.length,
-      cumulativePNL: downsampledCumulativePNL.length,
-    };
-    console.log('Data lengths after downsampling:', dataLengths);
-
-    // Ensure all data arrays have the same length
-    const allSameLength = Object.values(dataLengths).every(
-      (length) => length === dataLengths.timestamps
-    );
-    if (!allSameLength) {
-      console.error('Data arrays have mismatched lengths:', dataLengths);
-      setIsDataValid(false);
-      return;
-    }
+    const parseISODate = (dateString) => new Date(dateString);
+    const timestamps = results.timestamps.map(parseISODate);
 
     const newTraces = [];
 
     // Plot Close Price
     if (showClosePrice) {
       newTraces.push({
-        x: downsampledTimestamps,
-        y: downsampledClosePrices,
+        x: timestamps,
+        y: results.closePrices,
         type: 'scatter',
         mode: 'lines',
         name: 'Close Price',
         line: { color: 'blue', width: 2 },
         yaxis: 'y',
         hovertemplate: '%{x}<br>Close: %{y}<br>',
-        connectgaps: false,
       });
     }
 
     // Plot Short SMA
     if (showShortSMA) {
+      const shortSMAData = results.shortSMA.map((value, index) => ({
+        x: timestamps[index],
+        y: value
+      })).filter(point => point.y !== null);
+
       newTraces.push({
-        x: downsampledTimestamps,
-        y: downsampledShortSMA,
+        x: shortSMAData.map(point => point.x),
+        y: shortSMAData.map(point => point.y),
         type: 'scatter',
         mode: 'lines',
         name: 'Short SMA',
         line: { color: 'orange', width: 1.5 },
         yaxis: 'y',
-        connectgaps: false,
       });
     }
 
     // Plot Long SMA
     if (showLongSMA) {
+      const longSMAData = results.longSMA.map((value, index) => ({
+        x: timestamps[index],
+        y: value
+      })).filter(point => point.y !== null);
+
       newTraces.push({
-        x: downsampledTimestamps,
-        y: downsampledLongSMA,
+        x: longSMAData.map(point => point.x),
+        y: longSMAData.map(point => point.y),
         type: 'scatter',
         mode: 'lines',
         name: 'Long SMA',
         line: { color: 'purple', width: 1.5 },
         yaxis: 'y',
-        connectgaps: false,
       });
     }
 
     // Plot Buy Signals
     if (showBuySignals && results.buySignals && results.buySignals.length > 0) {
       newTraces.push({
-        x: results.buySignals.map((signal) => signal.timestamp),
+        x: results.buySignals.map((signal) => parseISODate(signal.timestamp)),
         y: results.buySignals.map((signal) => signal.price),
         type: 'scatter',
         mode: 'markers',
@@ -161,7 +102,7 @@ const StrategyResultsChart = ({ results }) => {
     // Plot Sell Signals
     if (showSellSignals && results.sellSignals && results.sellSignals.length > 0) {
       newTraces.push({
-        x: results.sellSignals.map((signal) => signal.timestamp),
+        x: results.sellSignals.map((signal) => parseISODate(signal.timestamp)),
         y: results.sellSignals.map((signal) => signal.price),
         type: 'scatter',
         mode: 'markers',
@@ -178,14 +119,13 @@ const StrategyResultsChart = ({ results }) => {
     // Plot Cumulative PNL
     if (showCumulativePNL) {
       newTraces.push({
-        x: downsampledTimestamps,
-        y: downsampledCumulativePNL,
+        x: timestamps,
+        y: results.cumulativePNL,
         type: 'scatter',
         mode: 'lines',
         name: 'Cumulative PNL',
         line: { color: 'green', width: 2, dash: 'dot' },
         yaxis: 'y2',
-        connectgaps: false,
       });
     }
 
@@ -284,6 +224,19 @@ const StrategyResultsChart = ({ results }) => {
         style={{ width: '100%', height: '600px' }}
         config={{ responsive: true }}
       />
+      <div style={{ marginTop: '20px' }}>
+        <h3>Trade Statistics</h3>
+        <ul>
+          <li>Total Trades: {results.totalTrades}</li>
+          <li>Winning Trades: {results.winningTrades}</li>
+          <li>Losing Trades: {results.losingTrades}</li>
+          <li>Win Rate: {(results.winRate * 100).toFixed(2)}%</li>
+          <li>Average Win: ${results.averageWin.toFixed(2)}</li>
+          <li>Average Loss: ${results.averageLoss.toFixed(2)}</li>
+          <li>Profit Factor: {results.profitFactor.toFixed(2)}</li>
+          <li>Max Drawdown: ${results.maxDrawdown.toFixed(2)}</li>
+        </ul>
+      </div>
     </div>
   );
 };
@@ -310,6 +263,14 @@ StrategyResultsChart.propTypes = {
     strategyName: PropTypes.string,
     symbol: PropTypes.string.isRequired,
     timeframe: PropTypes.string.isRequired,
+    totalTrades: PropTypes.number.isRequired,
+    winningTrades: PropTypes.number.isRequired,
+    losingTrades: PropTypes.number.isRequired,
+    winRate: PropTypes.number.isRequired,
+    averageWin: PropTypes.number.isRequired,
+    averageLoss: PropTypes.number.isRequired,
+    profitFactor: PropTypes.number.isRequired,
+    maxDrawdown: PropTypes.number.isRequired,
   }).isRequired,
 };
 
