@@ -1,38 +1,25 @@
 import { useState, useEffect } from 'react';
 import axios from 'axios';
 import 'bootstrap/dist/css/bootstrap.min.css';
-import MarketDataChart from './MarketDataChart';
-import { fetchStrategies, calculateStrategy } from './strategyApi';
+import DateTimePicker from 'react-datetime-picker';
+import 'react-datetime-picker/dist/DateTimePicker.css';
+import 'react-calendar/dist/Calendar.css';
+import 'react-clock/dist/Clock.css';
 
 const API_BASE_URL = 'http://localhost:8081';
 
 const MarketDataDownloader = () => {
   const [formData, setFormData] = useState({
-    exchange: '',
+    exchange: 'BINANCE',
     symbol: '',
-    interval: '',
-    startTime: '',
-    endTime: '',
+    interval: '1m',
+    startTime: new Date(new Date().getTime() - 2 * 60 * 60 * 1000), // 2 hours ago
+    endTime: new Date(),
   });
   const [isDownloading, setIsDownloading] = useState(false);
   const [marketData, setMarketData] = useState([]);
-  const [strategies, setStrategies] = useState([]);
-  const [selectedStrategy, setSelectedStrategy] = useState('');
-  const [strategyResults, setStrategyResults] = useState(null);
   const [progress, setProgress] = useState(null);
   const [validationErrors, setValidationErrors] = useState([]);
-
-  useEffect(() => {
-    const loadStrategies = async () => {
-      try {
-        const fetchedStrategies = await fetchStrategies();
-        setStrategies(fetchedStrategies);
-      } catch (error) {
-        console.error('Error fetching strategies:', error);
-      }
-    };
-    loadStrategies();
-  }, []);
 
   // Progress polling effect
   useEffect(() => {
@@ -79,6 +66,19 @@ const MarketDataDownloader = () => {
     }
   };
 
+  const handleDateTimeChange = (name, value) => {
+    setFormData({ ...formData, [name]: value });
+    // Clear validation errors when user changes datetime
+    if (validationErrors.length > 0) {
+      setValidationErrors([]);
+    }
+  };
+
+  // Available options
+  const exchanges = ['BINANCE', 'COINBASE', 'KRAKEN'];
+  const intervals = ['1m', '3m', '5m', '15m', '30m', '1h', '2h', '4h', '6h', '8h', '12h', '1d', '3d', '1w', '1M'];
+  const popularSymbols = ['BTCUSDT', 'ETHUSDT', 'BNBUSDT', 'ADAUSDT', 'SOLUSDT', 'XRPUSDT', 'DOTUSDT', 'DOGEUSDT'];
+
   const handleDownload = async (e) => {
     e.preventDefault();
     
@@ -99,7 +99,7 @@ const MarketDataDownloader = () => {
         symbol: formData.symbol,
         timeframe: 'raw',
         interval: formData.interval,
-        ...(formData.startTime && { startFrom: formData.startTime })
+        ...(formData.startTime && { startFrom: formData.startTime.toISOString() })
       });
       const response = await axios.get(`${API_BASE_URL}/api/market-data/historical/download-all?${params}`);
       console.log('Download started:', response.data);
@@ -125,32 +125,20 @@ const MarketDataDownloader = () => {
 
   const fetchMarketData = async () => {
     try {
-      const response = await axios.get(`${API_BASE_URL}/api/market-data`, { params: formData });
+      const params = {
+        exchange: formData.exchange,
+        symbol: formData.symbol,
+        interval: formData.interval,
+        startTime: formData.startTime.toISOString(),
+        endTime: formData.endTime.toISOString()
+      };
+      const response = await axios.get(`${API_BASE_URL}/api/market-data`, { params });
       setMarketData(response.data);
     } catch (error) {
       console.error('Error fetching market data:', error);
     }
   };
 
-  const handleStrategyChange = (e) => {
-    setSelectedStrategy(e.target.value);
-  };
-
-  const handleCalculateStrategy = async () => {
-    if (!selectedStrategy) return;
-
-    try {
-      const results = await calculateStrategy(selectedStrategy, {
-        symbol: formData.symbol,
-        interval: formData.interval,
-        startDate: formData.startTime,
-        endDate: formData.endTime,
-      });
-      setStrategyResults(results);
-    } catch (error) {
-      console.error('Error calculating strategy:', error);
-    }
-  };
 
   return (
     <div className="card shadow-sm">
@@ -160,63 +148,85 @@ const MarketDataDownloader = () => {
           <div className="row g-3">
             <div className="col-md-6 col-lg-4">
               <label htmlFor="exchange" className="form-label">Exchange:</label>
-              <input
-                type="text"
-                className="form-control"
+              <select
+                className="form-select"
                 id="exchange"
                 name="exchange"
                 value={formData.exchange}
                 onChange={handleInputChange}
                 required
-              />
+              >
+                {exchanges.map(exchange => (
+                  <option key={exchange} value={exchange}>{exchange}</option>
+                ))}
+              </select>
             </div>
             <div className="col-md-6 col-lg-4">
               <label htmlFor="symbol" className="form-label">Symbol:</label>
-              <input
-                type="text"
-                className="form-control"
-                id="symbol"
-                name="symbol"
-                value={formData.symbol}
-                onChange={handleInputChange}
-                required
-              />
+              <div className="input-group">
+                <input
+                  type="text"
+                  className="form-control"
+                  id="symbol"
+                  name="symbol"
+                  value={formData.symbol}
+                  onChange={handleInputChange}
+                  placeholder="Enter symbol (e.g., BTCUSDT)"
+                  required
+                />
+                <select
+                  className="form-select"
+                  style={{maxWidth: '120px'}}
+                  value={formData.symbol}
+                  onChange={(e) => setFormData({...formData, symbol: e.target.value})}
+                >
+                  <option value="">Popular</option>
+                  {popularSymbols.map(symbol => (
+                    <option key={symbol} value={symbol}>{symbol}</option>
+                  ))}
+                </select>
+              </div>
             </div>
             <div className="col-md-6 col-lg-4">
               <label htmlFor="interval" className="form-label">Interval:</label>
-              <input
-                type="text"
-                className="form-control"
+              <select
+                className="form-select"
                 id="interval"
                 name="interval"
                 value={formData.interval}
                 onChange={handleInputChange}
                 required
-              />
+              >
+                {intervals.map(interval => (
+                  <option key={interval} value={interval}>{interval}</option>
+                ))}
+              </select>
             </div>
             <div className="col-md-6 col-lg-6">
-              <label htmlFor="startTime" className="form-label">Start Time:</label>
-              <input
-                type="datetime-local"
-                className="form-control"
-                id="startTime"
-                name="startTime"
-                value={formData.startTime}
-                onChange={handleInputChange}
-                required
-              />
+              <label className="form-label">Start Time:</label>
+              <div className="d-block">
+                <DateTimePicker
+                  onChange={(value) => handleDateTimeChange('startTime', value)}
+                  value={formData.startTime}
+                  className="form-control"
+                  format="y-MM-dd HH:mm"
+                  clearIcon={null}
+                  calendarIcon={null}
+                />
+              </div>
             </div>
             <div className="col-md-6 col-lg-6">
-              <label htmlFor="endTime" className="form-label">End Time:</label>
-              <input
-                type="datetime-local"
-                className="form-control"
-                id="endTime"
-                name="endTime"
-                value={formData.endTime}
-                onChange={handleInputChange}
-                required
-              />
+              <label className="form-label">End Time:</label>
+              <div className="d-block">
+                <DateTimePicker
+                  onChange={(value) => handleDateTimeChange('endTime', value)}
+                  value={formData.endTime}
+                  className="form-control"
+                  format="y-MM-dd HH:mm"
+                  clearIcon={null}
+                  calendarIcon={null}
+                />
+              </div>
             </div>
           </div>
           <div className="mt-4 d-flex justify-content-end">
@@ -276,42 +286,11 @@ const MarketDataDownloader = () => {
           </div>
         )}
 
-        <div className="mt-4">
-          <h5>Strategy Calculation</h5>
-          <div className="row g-3">
-            <div className="col-md-6">
-              <label htmlFor="strategy" className="form-label">Select Strategy:</label>
-              <select
-                className="form-select"
-                id="strategy"
-                value={selectedStrategy}
-                onChange={handleStrategyChange}
-              >
-                <option value="">Choose a strategy</option>
-                {strategies.map((strategy) => (
-                  <option key={strategy.id} value={strategy.id}>
-                    {strategy.name}
-                  </option>
-                ))}
-              </select>
-            </div>
-            <div className="col-md-6 d-flex align-items-end">
-              <button
-                type="button"
-                className="btn btn-primary"
-                onClick={handleCalculateStrategy}
-                disabled={!selectedStrategy}
-              >
-                Calculate Strategy
-              </button>
-            </div>
-          </div>
-        </div>
-
         {marketData.length > 0 && (
           <div className="mt-4">
-            <h5>Market Data and Strategy Results</h5>
-            <MarketDataChart marketData={marketData} strategyResults={strategyResults} />
+            <div className="alert alert-success">
+              <strong>Download Complete!</strong> Successfully downloaded {marketData.length} data points.
+            </div>
           </div>
         )}
       </div>
